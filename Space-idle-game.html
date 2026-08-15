@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIFTWATCH // Stardust Mining Console</title>
+<style>
+  :root{
+    --bg: #070a10;
+    --panel: #0f1420;
+    --panel-2: #131a29;
+    --border: #232d40;
+    --amber: #ffb454;
+    --amber-dim: #a8794a;
+    --cyan: #5ccfe6;
+    --text: #cfd8e3;
+    --muted: #64728a;
+    --danger: #ff6b6b;
+    --good: #8fd694;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  #stars{
+    position: fixed; inset:0;
+    z-index:0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, #ffffff88 50%, transparent 100%),
+      radial-gradient(1px 1px at 80% 10%, #ffffff66 50%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 60% 40%, #ffffffaa 50%, transparent 100%),
+      radial-gradient(1px 1px at 30% 70%, #ffffff55 50%, transparent 100%),
+      radial-gradient(1px 1px at 90% 60%, #ffffff77 50%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 45% 85%, #ffffff99 50%, transparent 100%),
+      radial-gradient(1px 1px at 15% 50%, #ffffff44 50%, transparent 100%),
+      radial-gradient(1px 1px at 70% 90%, #ffffff66 50%, transparent 100%);
+    background-repeat: repeat;
+    background-size: 400px 400px;
+    opacity: 0.6;
+    animation: drift 120s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes drift{
+    from{ background-position: 0 0; }
+    to{ background-position: -800px 400px; }
+  }
+
+  .wrap{ position:relative; z-index:1; max-width: 760px; margin: 0 auto; padding: 14px 14px 60px; }
+
+  header{
+    position: sticky; top:0; z-index: 5;
+    background: linear-gradient(180deg, rgba(7,10,16,0.98) 70%, rgba(7,10,16,0.85));
+    backdrop-filter: blur(4px);
+    padding: 10px 0 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .title-row{ display:flex; align-items:baseline; justify-content:space-between; gap: 8px; }
+  .title-row h1{
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--amber);
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .title-row .tag{ font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+  .stat-bar{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .stat{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .stat .label{ font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+  .stat .value{ font-family: var(--mono); font-size: 17px; color: var(--text); margin-top: 2px; }
+  .stat .value.amber{ color: var(--amber); }
+  .stat .value.cyan{ color: var(--cyan); }
+  .stat .sub{ font-family: var(--mono); font-size: 10px; color: var(--good); margin-top:1px; }
+
+  .mine-zone{
+    display:flex; flex-direction:column; align-items:center;
+    gap: 8px;
+    padding: 18px 0 22px;
+    position: relative;
+  }
+  #mineBtn{
+    width: 132px; height:132px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #1c2436, #0b0f18 70%);
+    border: 2px solid var(--amber-dim);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 0 0 rgba(255,180,84,0.35);
+    transition: transform 0.08s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #mineBtn:active{ transform: scale(0.94); }
+  #mineBtn:hover{ border-color: var(--amber); box-shadow: 0 0 24px 2px rgba(255,180,84,0.18); }
+  .mine-sub{ font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .floaters{ position:absolute; inset:0; pointer-events:none; }
+  .floater{
+    position:absolute; left:50%; top: 30%;
+    font-family: var(--mono); font-size: 13px; color: var(--amber);
+    animation: floatUp 0.9s ease-out forwards;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  @keyframes floatUp{
+    0%{ opacity: 1; transform: translate(-50%, 0); }
+    100%{ opacity: 0; transform: translate(-50%, -46px); }
+  }
+
+  nav.tabs{
+    display:flex; gap: 6px; margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  nav.tabs button{
+    flex:1;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 9px 4px 10px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  nav.tabs button.active{
+    color: var(--amber);
+    border-bottom-color: var(--amber);
+  }
+
+  .panel-section{ display:none; }
+  .panel-section.active{ display:block; }
+
+  .buy-mode{
+    display:flex; gap: 6px; margin-bottom: 10px;
+  }
+  .buy-mode button{
+    flex:1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 0;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .buy-mode button.active{
+    color: var(--bg);
+    background: var(--amber);
+    border-color: var(--amber);
+  }
+
+  .gen-card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 9px;
+    display:flex; flex-direction:column; gap: 6px;
+  }
+  .gen-top{ display:flex; justify-content:space-between; align-items:flex-start; gap: 8px; }
+  .gen-name{ font-size: 13.5px; color: var(--text); font-weight:600; }
+  .gen-flavor{ font-size: 11px; color: var(--muted); margin-top:1px; }
+  .gen-count{ font-family: var(--mono); font-size: 12px; color: var(--cyan); white-space:nowrap; }
+  .gen-bottom{ display:flex; justify-content:space-between; align-items:center; gap: 8px; }
+  .gen-prod{ font-family: var(--mono); font-size: 11px; color: var(--good); }
+  .buy-btn{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--amber);
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .buy-btn:disabled{ color: var(--muted); border-color: var(--border); cursor: not-allowed; opacity: 0.55; }
+  .buy-btn:not(:disabled):hover{ border-color: var(--amber); }
+
+  .upg-card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 9px;
+    display:flex; justify-content:space-between; align-items:center; gap: 10px;
+  }
+  .upg-card.bought{ opacity: 0.45; }
+  .upg-name{ font-size: 13px; color: var(--text); font-weight:600; }
+  .upg-desc{ font-size: 11px; color: var(--muted); margin-top:2px; }
+
+  .warp-box{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align:center;
+  }
+  .warp-box h2{ font-family: var(--mono); font-size: 13px; color: var(--cyan); letter-spacing: 1.5px; margin: 0 0 8px; text-transform:uppercase; }
+  .warp-box p{ font-size: 12px; color: var(--muted); line-height:1.5; margin: 0 0 14px; }
+  .warp-gain{ font-family: var(--mono); font-size: 26px; color: var(--cyan); margin-bottom: 4px; }
+  #warpBtn{
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: var(--cyan);
+    color: #062226;
+    border: none;
+    padding: 11px 22px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  #warpBtn:disabled{ background: var(--panel-2); color: var(--muted); cursor: not-allowed; }
+
+  .log-panel{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    height: 150px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display:flex; flex-direction:column-reverse;
+  }
+  .log-panel .entry{ padding: 2px 0; border-bottom: 1px dashed #1a2233; }
+  .log-panel .entry .t{ color: var(--amber-dim); margin-right: 6px; }
+
+  .section-label{
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    letter-spacing: 1.5px; text-transform: uppercase; margin: 4px 0 8px;
+  }
+
+  ::-webkit-scrollbar{ width: 6px; }
+  ::-webkit-scrollbar-thumb{ background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="wrap">
+  <header>
+    <div class="title-row">
+      <h1>Driftwatch</h1>
+      <span class="tag">Stardust Mining Console v1.0</span>
+    </div>
+    <div class="stat-bar">
+      <div class="stat">
+        <div class="label">Stardust</div>
+        <div class="value amber" id="statDust">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Yield / sec</div>
+        <div class="value" id="statRate">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Quantum Cores</div>
+        <div class="value cyan" id="statCores">0</div>
+        <div class="sub" id="statCoreBonus">+0% output</div>
+      </div>
+      <div class="stat">
+        <div class="label">Click Power</div>
+        <div class="value" id="statClick">1</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="mine-zone">
+    <button id="mineBtn">Harvest<br>Dust</button>
+    <div class="mine-sub" id="mineSub">+1.0 dust / click</div>
+    <div class="floaters" id="floaters"></div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="fleet">Fleet</button>
+    <button class="tab-btn" data-tab="upgrades">Upgrades</button>
+    <button class="tab-btn" data-tab="warp">Warp</button>
+    <button class="tab-btn" data-tab="log">Log</button>
+  </nav>
+
+  <section class="panel-section active" id="tab-fleet">
+    <div class="buy-mode">
+      <button data-mode="1" class="active">Buy x1</button>
+      <button data-mode="10">Buy x10</button>
+      <button data-mode="100">Buy x100</button>
+      <button data-mode="max">Buy Max</button>
+    </div>
+    <div id="genList"></div>
+  </section>
+
+  <section class="panel-section" id="tab-upgrades">
+    <div class="section-label">Research &amp; Refits</div>
+    <div id="upgList"></div>
+  </section>
+
+  <section class="panel-section" id="tab-warp">
+    <div class="warp-box">
+      <h2>Warp Jump</h2>
+      <p>Collapse this run into a Quantum Core reserve. Your fleet resets, but each core permanently boosts all future production by 2%.</p>
+      <div class="warp-gain" id="warpGainLabel">+0 cores</div>
+      <button id="warpBtn">Initiate Warp Jump</button>
+    </div>
+  </section>
+
+  <section class="panel-section" id="tab-log">
+    <div class="section-label">Mission Log</div>
+    <div class="log-panel" id="logPanel"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- State ----------
+  const state = {
+    dust: 0,
+    totalDustEarned: 0,
+    runDustEarned: 0,
+    cores: 0,
+    buyMode: 1,
+    generators: [
+      { id:'probe',     name:'Probe Drone',        flavor:'Autonomous skimmer, scrapes loose dust off debris fields.', baseCost:15,        costMult:1.15, baseProd:0.1,  count:0 },
+      { id:'rig',       name:'Mining Rig',          flavor:'Bolts onto small rocks and grinds them down.',              baseCost:100,       costMult:1.16, baseProd:1,    count:0 },
+      { id:'station',   name:'Orbital Station',     flavor:'Crewed platform processing raw ore into dust.',             baseCost:1100,      costMult:1.17, baseProd:8,    count:0 },
+      { id:'harvester', name:'Asteroid Harvester',  flavor:'Chews straight through the belt, one rock at a time.',      baseCost:12000,     costMult:1.18, baseProd:47,   count:0 },
+      { id:'array',     name:'Solar Array',         flavor:'Powers refineries system-wide with focused starlight.',     baseCost:130000,    costMult:1.19, baseProd:260,  count:0 },
+      { id:'dyson',     name:'Dyson Sphere',        flavor:'Encases an entire star for total energy capture.',          baseCost:1400000,   costMult:1.20, baseProd:1400, count:0 },
+      { id:'wormhole',  name:'Wormhole Refinery',   flavor:'Draws stardust out of folded space itself.',                baseCost:20000000,  costMult:1.21, baseProd:7800, count:0 }
+    ],
+    upgrades: [
+      { id:'click2',     name:'Reinforced Drill Bit', desc:'Click power x2',                cost:50,      type:'click',  mult:2, bought:false },
+      { id:'probe2',     name:'Probe Swarm Protocol', desc:'Probe Drone output x2',          cost:500,     type:'gen',    target:'probe', mult:2, bought:false },
+      { id:'click3',     name:'Plasma Cutter',       desc:'Click power x2',                  cost:1000,    type:'click',  mult:2, bought:false },
+      { id:'rig2',       name:'Reinforced Drill Heads', desc:'Mining Rig output x2',         cost:5000,    type:'gen',    target:'rig', mult:2, bought:false },
+      { id:'station2',   name:'Auto-Docking AI',     desc:'Orbital Station output x2',        cost:60000,   type:'gen',    target:'station', mult:2, bought:false },
+      { id:'global1',    name:'Fleet Command Network', desc:'All production x2',              cost:250000,  type:'global', mult:2, bought:false },
+      { id:'click4',     name:'Graviton Pick',       desc:'Click power x2',                   cost:400000,  type:'click',  mult:2, bought:false },
+      { id:'harvester2', name:'Diamond Tip Drills',  desc:'Asteroid Harvester output x2',      cost:700000,  type:'gen',    target:'harvester', mult:2, bought:false },
+      { id:'global2',    name:'Quantum Logistics',   desc:'All production x2',                cost:8000000, type:'global', mult:2, bought:false }
+    ],
+    logs: []
+  };
+
+  // ---------- Formatting ----------
+  const UNITS = ['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
+  function fmt(n){
+    if(n < 0) return '-' + fmt(-n);
+    if(n < 1000) return n.toFixed(n < 10 ? 2 : 1);
+    let u = -1;
+    while(n >= 1000 && u < UNITS.length - 1){ n /= 1000; u++; }
+    return n.toFixed(2) + UNITS[u];
+  }
+
+  // ---------- Derived values ----------
+  function genMultiplier(genId){
+    let m = 1;
+    for(const u of state.upgrades){
+      if(u.bought && u.type === 'gen' && u.target === genId) m *= u.mult;
+    }
+    return m;
+  }
+  function globalMultiplier(){
+    let m = 1 + state.cores * 0.02;
+    for(const u of state.upgrades){
+      if(u.bought && u.type === 'global') m *= u.mult;
+    }
+    return m;
+  }
+  function clickPower(){
+    let m = 1;
+    for(const u of state.upgrades){
+      if(u.bought && u.type === 'click') m *= u.mult;
+    }
+    return 1 * m * globalMultiplier();
+  }
+  function genProduction(gen){
+    return gen.baseProd * gen.count * genMultiplier(gen.id) * globalMultiplier();
+  }
+  function totalRate(){
+    return state.generators.reduce((s,g) => s + genProduction(g), 0);
+  }
+  function costFor(gen, offset){
+    return Math.ceil(gen.baseCost * Math.pow(gen.costMult, gen.count + offset));
+  }
+
+  // ---------- Logging ----------
+  function log(msg){
+    const time = new Date();
+    const t = time.toTimeString().slice(0,8);
+    state.logs.push({ t, msg });
+    if(state.logs.length > 40) state.logs.shift();
+    renderLog();
+  }
+
+  // ---------- Actions ----------
+  function harvest(ev){
+    const amt = clickPower();
+    state.dust += amt;
+    state.totalDustEarned += amt;
+    state.runDustEarned += amt;
+    spawnFloater('+' + fmt(amt));
+    renderStats();
+  }
+
+  function spawnFloater(text){
+    const el = document.createElement('div');
+    el.className = 'floater';
+    el.textContent = text;
+    el.style.left = (45 + Math.random()*10) + '%';
+    document.getElementById('floaters').appendChild(el);
+    setTimeout(() => el.remove(), 950);
+  }
+
+  function buyGenerator(gen){
+    const mode = state.buyMode;
+    if(mode === 'max'){
+      let count = 0, cost = 0;
+      while(count < 100000){
+        const c = costFor(gen, count);
+        if(state.dust - cost - c < 0) break;
+        cost += c; count++;
+      }
+      if(count === 0) return;
+      state.dust -= cost;
+      gen.count += count;
+      log('Deployed ' + count + ' ' + gen.name + (count > 1 ? 's' : '') + '.');
+    } else {
+      const qty = mode;
+      let cost = 0;
+      for(let i=0;i<qty;i++) cost += costFor(gen, i);
+      if(state.dust < cost) return;
+      state.dust -= cost;
+      gen.count += qty;
+      log('Deployed ' + qty + ' ' + gen.name + (qty > 1 ? 's' : '') + '.');
+    }
+    renderAll();
+  }
+
+  function buyUpgrade(u){
+    if(u.bought || state.dust < u.cost) return;
+    state.dust -= u.cost;
+    u.bought = true;
+    log('Research complete: ' + u.name + '.');
+    renderAll();
+  }
+
+  function coreGainPreview(){
+    return Math.max(0, Math.floor(Math.sqrt(state.runDustEarned / 1e5)));
+  }
+
+  function warpJump(){
+    const gain = coreGainPreview();
+    if(gain < 1) return;
+    state.cores += gain;
+    state.dust = 0;
+    state.runDustEarned = 0;
+    state.generators.forEach(g => g.count = 0);
+    state.upgrades.forEach(u => u.bought = false);
+    log('WARP JUMP executed. +' + gain + ' Quantum Core' + (gain > 1 ? 's' : '') + ' banked. Fleet reset.');
+    renderAll();
+  }
+
+  // ---------- Rendering ----------
+  function renderStats(){
+    document.getElementById('statDust').textContent = fmt(state.dust);
+    document.getElementById('statRate').textContent = fmt(totalRate()) + '/s';
+    document.getElementById('statCores').textContent = fmt(state.cores);
+    document.getElementById('statCoreBonus').textContent = '+' + Math.round(state.cores*2) + '% output';
+    document.getElementById('statClick').textContent = fmt(clickPower());
+    document.getElementById('mineSub').textContent = '+' + fmt(clickPower()) + ' dust / click';
+    const gain = coreGainPreview();
+    document.getElementById('warpGainLabel').textContent = '+' + gain + ' core' + (gain === 1 ? '' : 's');
+    const wb = document.getElementById('warpBtn');
+    wb.disabled = gain < 1;
+  }
+
+  function renderGenerators(){
+    const list = document.getElementById('genList');
+    list.innerHTML = '';
+    state.generators.forEach(gen => {
+      const cost = state.buyMode === 'max' ? costFor(gen, 0) : (() => {
+        let c = 0;
+        const qty = state.buyMode;
+        for(let i=0;i<qty;i++) c += costFor(gen, i);
+        return c;
+      })();
+      const affordable = state.dust >= cost;
+      const card = document.createElement('div');
+      card.className = 'gen-card';
+      card.innerHTML =
+        '<div class="gen-top">' +
+          '<div><div class="gen-name">' + gen.name + '</div><div class="gen-flavor">' + gen.flavor + '</div></div>' +
+          '<div class="gen-count">x' + gen.count + '</div>' +
+        '</div>' +
+        '<div class="gen-bottom">' +
+          '<div class="gen-prod">' + fmt(genProduction(gen)) + '/s total</div>' +
+          '<button class="buy-btn" ' + (affordable ? '' : 'disabled') + '>' +
+            (state.buyMode === 'max' ? 'Max — ' : 'x' + state.buyMode + ' — ') + fmt(cost) +
+          '</button>' +
+        '</div>';
+      card.querySelector('.buy-btn').addEventListener('click', () => buyGenerator(gen));
+      list.appendChild(card);
+    });
+  }
+
+  function renderUpgrades(){
+    const list = document.getElementById('upgList');
+    list.innerHTML = '';
+    state.upgrades.forEach(u => {
+      const card = document.createElement('div');
+      card.className = 'upg-card' + (u.bought ? ' bought' : '');
+      card.innerHTML =
+        '<div><div class="upg-name">' + u.name + '</div><div class="upg-desc">' + u.desc + '</div></div>' +
+        (u.bought
+          ? '<span style="font-family:var(--mono);font-size:11px;color:var(--good);">OWNED</span>'
+          : '<button class="buy-btn" ' + (state.dust >= u.cost ? '' : 'disabled') + '>' + fmt(u.cost) + '</button>');
+      if(!u.bought){
+        card.querySelector('.buy-btn').addEventListener('click', () => buyUpgrade(u));
+      }
+      list.appendChild(card);
+    });
+  }
+
+  function renderLog(){
+    const panel = document.getElementById('logPanel');
+    panel.innerHTML = state.logs.slice().reverse().map(e =>
+      '<div class="entry"><span class="t">' + e.t + '</span>' + e.msg + '</div>'
+    ).join('');
+  }
+
+  function renderAll(){
+    renderStats();
+    renderGenerators();
+    renderUpgrades();
+  }
+
+  // ---------- Tabs ----------
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---------- Buy mode ----------
+  document.querySelectorAll('.buy-mode button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.buy-mode button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const m = btn.dataset.mode;
+      state.buyMode = m === 'max' ? 'max' : parseInt(m, 10);
+      renderGenerators();
+    });
+  });
+
+  // ---------- Mine button ----------
+  document.getElementById('mineBtn').addEventListener('click', harvest);
+
+  // ---------- Warp ----------
+  document.getElementById('warpBtn').addEventListener('click', warpJump);
+
+  // ---------- Game loop ----------
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.5, (now - last) / 1000);
+    last = now;
+    const rate = totalRate();
+    if(rate > 0){
+      const gained = rate * dt;
+      state.dust += gained;
+      state.totalDustEarned += gained;
+      state.runDustEarned += gained;
+    }
+    renderStats();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Init ----------
+  log('Console online. Awaiting first harvest.');
+  renderAll();
+  requestAnimationFrame(loop);
+
+  // Slower periodic re-render for generator/upgrade affordability states
+  setInterval(() => { renderGenerators(); renderUpgrades(); }, 500);
+
+})();
+</script>
+</body>
+</html>
